@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -212,9 +212,39 @@ def stop_following(follow_id):
 
 @app.route("/users/profile", methods=["GET", "POST"])
 def profile():
-    """Update profile for current user."""
+    """Update profile for current user.
+    - Users not logged in will be redirected to the homepage
+    - Username updates are verified to be unique.
+    """
 
-    # IMPLEMENT THIS
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = g.user
+    form = UserEditForm(obj=user)
+
+    if form.validate_on_submit():
+        if user.authenticate(username=user.username, password=form.password.data):
+            try:
+                # Overwrite form password to password hash, before merging form data w/
+                # user obj to prevent user's password being stored in plain text.
+                form.password.data = user.password
+                form.populate_obj(user)
+
+                db.session.commit()
+
+            except IntegrityError:
+                db.session.rollback()
+                flash("Username already taken", "danger")
+                return render_template("/users/edit.html", form=form)
+
+            flash("Profile Successful Updated.", "success")
+            return redirect(f"/users/{user.id}")
+        else:
+            flash("Profile changes failed. Username or Password are invalid.", "danger")
+
+    return render_template("users/edit.html", form=form)
 
 
 @app.route("/users/delete", methods=["POST"])
