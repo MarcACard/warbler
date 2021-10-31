@@ -326,7 +326,13 @@ def homepage():
     """
 
     if g.user:
-        messages = Message.query.order_by(Message.timestamp.desc()).limit(100).all()
+        following = [u.id for u in g.user.following]
+        messages = (
+            Message.query.filter(Message.user_id.in_(following))
+            .order_by(Message.timestamp.desc())
+            .limit(100)
+            .all()
+        )
 
         return render_template("home.html", messages=messages)
 
