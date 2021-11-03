@@ -65,8 +65,8 @@ class UserModelTestCase(TestCase):
 
         self.client = app.test_client()
 
-    ####################
-    ## User Model Attributes
+    ######################
+    ## User Instance Attr
 
     def test_new_user(self):
         """Test User Instance Attributes
