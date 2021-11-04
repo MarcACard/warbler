@@ -5,10 +5,9 @@ from unittest import TestCase
 
 from models import db, User, Message, Likes
 from sqlalchemy import exc
+from app import app
 
 os.environ["DATABASE_URL"] = "postgresql:///warbler-test"
-
-from app import app
 
 
 class MessageLikeModelTestCase(TestCase):
