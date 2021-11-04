@@ -87,3 +87,55 @@ class MessageViewTestCase(TestCase):
 
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+    
+    def test_add_message_unauthorized(self):
+        """Add Message Route Test
+        GIVEN a user that isn't logged in
+        WHEN a message is posted
+        THEN a message should NOT be added. 
+        """
+
+        with self.client as c:
+            resp = c.post("/messages/new", data={"text": "Hello"})
+
+            # No message should be present. 
+            msg = Message.query.first()
+            self.assertIsNone(msg)
+
+    def test_delete_message(self):
+        """Add Message Route Test
+        GIVEN a logged in user
+        WHEN a message is deleted
+        THEN message is deleted and user is redircted to the homepage
+        """
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            # Post new message
+            c.post("/messages/new", data={"text": "Hello"})
+            m = Message.query.first()
+            
+            # Delete Posted Message
+            resp = c.post(f"/messages/{m.id}/delete")
+            m = Message.query.first() 
+            
+            # User is redirected & message does not exist. 
+            self.assertEqual(resp.status_code, 302)
+            self.assertIsNone(m)
+
+    def test_delete_message_unauthorized(self):
+        """Add Message Route Test
+        GIVEN a user that isn't logged in
+        WHEN attemtping to delete a message
+        THEN user should be redirected & shown an 'unauthorized' message. 
+        """
+
+        with self.client as c:
+            # Message does not exist, but user should be redirected before the DB is queried. 
+            resp = c.post("/messages/1/delete", follow_redirects=True)
+
+            self.assertIn(b"Access unauthorized.", resp.data)
+            

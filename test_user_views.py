@@ -40,15 +40,11 @@ class UserViewTestCase(TestCase):
 
         db.session.commit()
 
-    # def tearDown(self):
-    #     if CURR_USER_KEY in session:
-    #         del session[CURR_USER_KEY]
-
     ###########
     # HOMEPAGE
 
     def test_anon_homepage(self):
-        """
+        """ Anon Homepage
         GIVEN no user logged in
         WHEN homepage accessed
         THEN direct to anon homepage
@@ -63,7 +59,7 @@ class UserViewTestCase(TestCase):
             )
 
     def test_user_homepage(self):
-        """
+        """ User Homepage w/ Warble Message Feed
         GIVEN a logged in user
         WHEN navigating to the homepage
         THEN serve homepage with message feed
@@ -83,9 +79,9 @@ class UserViewTestCase(TestCase):
 
     def test_user_signup(self):
         """Sign up Route - GET
-        GIVEN a user
+        GIVEN a user that isn't signed in
         WHEN navigating to the /signup route
-        THEN serve signup form
+        THEN signup form should be available to the user
         """
 
         with self.client as c:
@@ -96,16 +92,32 @@ class UserViewTestCase(TestCase):
             self.assertIn(b"Join Warbler today.", resp.data)
             self.assertIn(b'<form method="POST" id="user_form">', resp.data)
 
+    def test_user_signup_redirect(self):
+        """Sign up Route - GET - Redirect
+        GIVEN a logged in user
+        WHEN navigating to the signup route
+        THEN the user should be redircted to their homepage
+        """
+
+        with self.client as c: 
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u.id
+        
+        resp = c.get("/signup")
+        resp_follow = c.get("/signup", follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(b'id="messages"', resp_follow.data)
+        
+
     def test_user_signup_post_valid(self):
         """Sign up Route - POST
+        GIVEN a 
         WHEN a valid signup post request is submitted
         THEN create new account and redirect to the homepage
         """
 
         with self.client as c:
-            with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.u.id
-
             resp = c.post(
                 "/signup",
                 data={
@@ -116,7 +128,7 @@ class UserViewTestCase(TestCase):
                 },
             )
 
-            # Confirm Response & Redirect Location
+            # Confirm Response & Redirect to homepage
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.location, "http://localhost/")
 
@@ -145,13 +157,24 @@ class UserViewTestCase(TestCase):
             # Confirm Response & Form Presence
             self.assertEqual(resp.status_code, 200)
             self.assertIn(b'<form method="POST" id="user_form">', resp.data)
+            self.assertIn(b"Field must be at least 6 characters long.", resp.data)
 
     ###############
     # USER PROFILE
 
-    def test_user_profile(self):
+    def test_user_profile_owner_view(self):
         """
-        GIVEN
-        WHEN
-        THEN
+        GIVEN a logged in user
+        WHEN user visits their profile
+        THEN edit and delete profile buttons are visible
         """
+
+        with self.client as c: 
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u.id
+
+            resp =  c.get(f"/users/{self.u.id}")
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(b'Edit Profile', resp.data)
+            self.assertIn(b"Delete Profile", resp.data)

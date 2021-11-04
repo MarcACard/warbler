@@ -66,6 +66,9 @@ def signup():
     and re-present form.
     """
 
+    if g.user:
+        return redirect("/")
+
     form = UserAddForm()
 
     if form.validate_on_submit():
